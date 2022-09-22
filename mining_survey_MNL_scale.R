@@ -20,7 +20,13 @@ pacman::p_load(
 )
 
 
-database = read_excel("Mining_survey_new.xlsx")
+database = read_excel("Mining_survey_NEW_RSK.xlsx")
+databaseOslo <- subset(database, database$count ==3)
+databaseFinnm <- subset(database, database$count == 20)
+
+dataN <- merge(databaseOslo, databaseFinnm, all=T)
+
+attach(database)
 
 #this is where we ususally would use apollo_choiceAnalysis but I didn't
 
@@ -37,7 +43,21 @@ apollo_beta=c(asc_SQ = 0,
               scale_split_T1 =1,
               scale_split_T2 = 1)
 
-apollo_fixed = c("scale_split_T1") #fix the scale for one of the versions
+apollo_beta=c(asc_SQ = 0,
+              asc_SQ_shift_count = 0,
+              b_SB = 0,
+              b_SB_shift_count = 0,
+              b_SAL = 0,
+              b_SAL_shift_count = 0,
+              b_JOB = 0,
+              b_JOB_shift_count = 0,
+              b_COST = 0,
+              b_COST_shift_count = 0,
+              scale_count_oslo =1,
+              scale_count_Finnm = 1)
+
+
+apollo_fixed = c("scale_count_oslo") #fix the scale for one of the versions
 
 apollo_inputs = apollo_validateInputs()
 
@@ -63,32 +83,31 @@ apollo_probabilities=function(apollo_beta, apollo_inputs, functionality="estimat
   
 
     # model in preference space with separate scale for T1 and T2
-  V = list()
-  
-  V[["alternative1"]]  =  (scale_split_T2*(1-split)+scale_split_T1*split)*((split)*(asc_SQ + b_COST*COST1 + b_SB*SB1 + b_SAL*SAL1 +b_JOB * JOB1)
-                                                                          +(1-split)*((asc_SQ+asc_SQ_shift_split)+(b_COST+b_COST_shift_split)*COST1+(b_SB+b_SB_shift_split)*SB1 + (b_SAL+b_SAL_shift_split)*SAL1 + (b_JOB+b_JOB_shift_split)*JOB1))
-                                                                           
-                                                                           
-                                                                                                                              
-  V[["alternative2"]]  =  (scale_split_T2*(1-split)+scale_split_T1*split)*((split)*(asc_SQ + b_COST*COST2 + b_SB*SB2 + b_SAL*SAL2 +b_JOB * JOB2)
-                                                                           +(1-split)*((asc_SQ+asc_SQ_shift_split)+(b_COST+b_COST_shift_split)*COST2+(b_SB+b_SB_shift_split)*SB2 + (b_SAL+b_SAL_shift_split)*SAL2 + (b_JOB+b_JOB_shift_split)*JOB2))
-  
-  V[["alternative3"]]  =  (scale_split_T2*(1-split)+scale_split_T1*split)*((split)*(asc_SQ + b_COST*COST3 + b_SB*SB3 + b_SAL*SAL3 +b_JOB * JOB3)
-                                                                           +(1-split)*((asc_SQ+asc_SQ_shift_split)+(b_COST+b_COST_shift_split)*COST3+(b_SB+b_SB_shift_split)*SB3 + (b_SAL+b_SAL_shift_split)*SAL3 + (b_JOB+b_JOB_shift_split)*JOB3))
-  
-  
-  
   #V = list()
   
-  #V[['alt1']]  =  (scale_base*(Certain)+scale_treat*(1-Certain))*((Certain)*(asc_B + cost *Cost1 + torsk*KT1 + laks*VL1+bunn*HB1 + land*KL1)+
-   #                                                                 (1-Certain)*((asc_B+asc_B_D)+(cost+cost_D)*Cost1 + (torsk+torsk_D)*KT1+(laks +laks_D)*VL1+ (bunn+bunn_D)*HB1 + (land+land_D)*KL1))
+  #V[["alternative1"]]  =  (scale_split_T2*(1-split_dum)+scale_split_T1*(split_dum))*((split_dum)*(asc_SQ + b_COST*COST1 + b_SB*SB1 + b_SAL*SAL1 +b_JOB * JOB1)
+   #                                                                       +(1-split_dum)*((asc_SQ+asc_SQ_shift_split)+(b_COST+b_COST_shift_split)*COST1+(b_SB+b_SB_shift_split)*SB1 + (b_SAL+b_SAL_shift_split)*SAL1 + (b_JOB+b_JOB_shift_split)*JOB1))
+                                                                          
+                                                                       
+                                                                                                                              
+  #V[["alternative2"]]  =  (scale_split_T2*(1-split_dum)+scale_split_T1*(split_dum))*((split_dum)*(b_COST*COST2 + b_SB*SB2 + b_SAL*SAL2 +b_JOB * JOB2)
+   #                                                                        +(1-split_dum)*((b_COST+b_COST_shift_split)*COST2+(b_SB+b_SB_shift_split)*SB2 + (b_SAL+b_SAL_shift_split)*SAL2 + (b_JOB+b_JOB_shift_split)*JOB2))
   
-  #V[['alt2']]  =  (scale_base*(Certain)+scale_treat*(1-Certain))*((Certain)*(cost *Cost2 + torsk*KT2 + laks*VL2+bunn*HB2 + land*KL2)+
-   #                                                                 (1-Certain)*((cost+cost_D)*Cost2 + (torsk+torsk_D)*KT2+(laks +laks_D)*VL2+ (bunn+bunn_D)*HB2 + (land+land_D)*KL2))
+  #V[["alternative3"]]  =  (scale_split_T2*(1-split_dum)+scale_split_T1*(split_dum))*((split_dum)*(b_COST*COST3 + b_SB*SB3 + b_SAL*SAL3 +b_JOB * JOB3)
+   #                                                                        +(1-split_dum)*((b_COST+b_COST_shift_split)*COST3+(b_SB+b_SB_shift_split)*SB3 + (b_SAL+b_SAL_shift_split)*SAL3 + (b_JOB+b_JOB_shift_split)*JOB3))
   
-  #V[['alt3']]  =  (scale_base*(Certain)+scale_treat*(1-Certain))*((Certain)*(cost *Cost3 + torsk*KT3 + laks*VL1+bunn*HB3 + land*KL3)+
-   #                                                                 (1-Certain)*((cost+cost_D)*Cost3 + (torsk+torsk_D)*KT3+(laks +laks_D)*VL3+ (bunn+bunn_D)*HB3 + (land+land_D)*KL3))
   
+  
+  V = list()
+  
+  V[["alternative1"]]  =  (scale_count_oslo*(oslo_dum)+scale_count_Finnm*(finnm_dum))*((oslo_dum)*(asc_SQ + b_COST*COST1 + b_SB*SB1 + b_SAL*SAL1 +b_JOB * JOB1)+
+                                                                   (finnm_dum)*((asc_SQ+asc_SQ_shift_count)+(b_COST+b_COST_shift_count)*COST1+(b_SB+b_SB_shift_count)*SB1 + (b_SAL+b_SAL_shift_count)*SAL1 + (b_JOB+b_JOB_shift_count)*JOB1))
+  
+  V[["alternative2"]]  =  (scale_count_oslo*(oslo_dum)+scale_count_Finnm*(finnm_dum))*((oslo_dum)*(b_COST*COST2 + b_SB*SB2 + b_SAL*SAL2 +b_JOB * JOB2)+
+                                                                  (finnm_dum)*((b_COST+b_COST_shift_count)*COST2+(b_SB+b_SB_shift_count)*SB2+(b_SAL+b_SAL_shift_count)*SAL2 + (b_JOB+b_JOB_shift_count)*JOB2))
+  
+  V[["alternative3"]]  = (scale_count_oslo*(oslo_dum)+scale_count_Finnm*(finnm_dum))*((oslo_dum)*(b_COST*COST3 + b_SB*SB3 + b_SAL*SAL3 +b_JOB * JOB3)+
+                                                                  (finnm_dum)*((b_COST+b_COST_shift_count)*COST3+(b_SB+b_SB_shift_count)*SB3 + (b_SAL+b_SAL_shift_count)*SAL3 + (b_JOB+b_JOB_shift_count)*JOB3))
   
   
   
