@@ -1,0 +1,252 @@
+### Load Apollo library
+library(apollo)
+library(readxl)
+library(tidyverse)
+library(stargazer)
+
+# ################################################################# #
+#### CORE SETTINGS           General model            ####
+# ################################################################# #
+
+### Clear memory
+rm(list = ls())
+
+### Initialise code
+apollo_initialise()
+
+### Set core controls
+apollo_control = list(
+  modelName  ="LC_mining_5c_treatment",
+  modelDescr ="Simple LC model on mining data with 5 classes",
+  indivID    ="ID",
+  nCores     = 3,
+  outputDirectory = "output Mining NEW"
+)
+
+database = read_excel("Mining_survey_new.xlsx")
+
+# ################################################################# #
+#### CORE SETTINGS           treatment split         ####
+# ################################################################# #
+### Clear memory
+rm(list = ls())
+
+### Initialise code
+apollo_initialise()
+
+### Set core controls
+apollo_control = list(
+  modelName  ="LC_mining_5c_T2",
+  modelDescr ="Simple LC model on mining data with 5 classes, T2",
+  indivID    ="ID",
+  nCores     = 3,
+  outputDirectory = "output Mining NEW"
+)
+
+database = read_excel("Mining_survey_new.xlsx")
+
+database <- database %>% filter(split == 2) 
+
+# ################################################################# #
+#### CORE SETTINGS           regional split         ####
+# ################################################################# #
+### Clear memory
+rm(list = ls())
+
+### Initialise code
+apollo_initialise()
+
+### Set core controls
+apollo_control = list(
+  modelName  ="LC_mining_5c_reg2",
+  modelDescr ="Simple LC model on mining data with 5 classes, reg2",
+  indivID    ="ID",
+  nCores     = 3,
+  outputDirectory = "output Mining NEW"
+)
+
+database = read_excel("Mining_survey_new.xlsx")
+
+database <- database %>% filter(distancecounty == 2) 
+
+# ################################################################# #
+#### DEFINE MODEL PARAMETERS                                     ####
+# ################################################################# #
+
+### Vector of parameters, including any that are kept fixed in estimation
+apollo_beta = c(asc_1          = 0,
+                seabed_a       = 0,
+                seabed_b       = 0,
+                seabed_c       = 0,
+                seabed_d       = 0,
+                seabed_e       = 0,
+                salmon_a       = 0,
+                salmon_b       = 0,
+                salmon_c       = 0,
+                salmon_d       = 0,
+                salmon_e       = 0,
+                job_a          = 0,
+                job_b          = 0,
+                job_c          = 0,
+                job_d          = 0,
+                job_e          = 0,
+                cost_a         =-0.001,
+                cost_b         =-0.001,
+                cost_c         =-0.001,
+                cost_d         =-0.001,
+                cost_e         =-0.001,
+                delta_a        = 0.0329,
+                #gamma_treatment_a = 0,
+                #gamma_distance_a = 0,
+                delta_b        = 0,
+                #gamma_treatment_b = 0,
+                #gamma_distance_b = 0,
+                delta_c        = 0.0329,
+                #gamma_treatment_c = 0,
+                #gamma_distance_c = 0,
+                delta_d        = 0.0329,
+                #gamma_treatment_d = 0,
+                #gamma_distance_d = 0,
+                delta_e        = 0.0329)
+                #gamma_treatment_e = 0)
+                #gamma_distance_e = 0)
+
+### Vector with names (in quotes) of parameters to be kept fixed at their starting value in apollo_beta, use apollo_beta_fixed = c() if none
+apollo_fixed = c("delta_b")
+                 #"gamma_treatment_b")
+                 #"gamma_distance_b")
+
+# ################################################################# #
+#### DEFINE LATENT CLASS COMPONENTS                              ####
+# ################################################################# #
+
+apollo_lcPars=function(apollo_beta, apollo_inputs){
+  lcpars = list()
+  
+  lcpars[["seabed"]] = list(seabed_a, seabed_b, seabed_c, seabed_d, seabed_e)
+  lcpars[["salmon"]] = list(salmon_a, salmon_b, salmon_c, salmon_d, salmon_e)
+  lcpars[["job"]] = list(job_a, job_b, job_c, job_d, job_e)
+  lcpars[["cost"]] = list(cost_a, cost_b, cost_c, cost_d, cost_e)
+  
+  V=list()
+  V[["class_a"]] = delta_a 
+                  #gamma_treatment_a*split 
+                  # gamma_distance_a * distancecounty
+  V[["class_b"]] = delta_b
+                  #gamma_treatment_b*split 
+                  #gamma_distance_b * distancecounty
+  V[["class_c"]] = delta_c 
+                  #gamma_treatment_c*split 
+                  # gamma_distance_c * distancecounty
+  V[["class_d"]] = delta_d 
+                  #gamma_treatment_d*split
+                  # gamma_distance_d * distancecounty
+  V[["class_e"]] = delta_e 
+                  #gamma_treatment_e*split
+                  # gamma_distance_e * distancecounty
+
+
+  
+  mnl_settings = list(
+    alternatives = c(class_a=1, class_b=2, class_c=3, class_d=4, class_e=5), 
+    avail        = 1, 
+    choiceVar    = NA, 
+    V            = V
+  )
+  lcpars[["pi_values"]] = apollo_mnl(mnl_settings, functionality="raw")
+  
+  lcpars[["pi_values"]] = apollo_firstRow(lcpars[["pi_values"]], apollo_inputs)
+  
+  return(lcpars)
+}
+
+# ################################################################# #
+#### GROUP AND VALIDATE INPUTS                                   ####
+# ################################################################# #
+
+apollo_inputs = apollo_validateInputs()
+
+# ################################################################# #
+#### DEFINE MODEL AND LIKELIHOOD FUNCTION                        ####
+# ################################################################# #
+
+apollo_probabilities=function(apollo_beta, apollo_inputs, functionality="estimate"){
+    
+  ### Attach inputs and detach after function exit
+  apollo_attach(apollo_beta, apollo_inputs)
+  on.exit(apollo_detach(apollo_beta, apollo_inputs))
+
+  ### Create list of probabilities P
+  P = list()
+  
+  ### Define settings for MNL model component that are generic across classes
+  mnl_settings = list(
+    alternatives = c(alt1=1, alt2=2, alt3=3),
+    avail        = list(alt1=1, alt2=1, alt3=1),
+    choiceVar    = choice
+  )
+  
+  ### Loop over classes
+  s=1
+  while(s<=5){
+    
+    ### Compute class-specific utilities
+    V=list()
+    V[['alt1']]  = asc_1 + seabed[[s]]*SB1 + salmon[[s]]*SAL1 + job[[s]]*JOB1 + cost[[s]]*COST1
+    V[['alt2']]  =         seabed[[s]]*SB2 + salmon[[s]]*SAL2 + job[[s]]*JOB2 + cost[[s]]*COST2
+    V[['alt3']]  =         seabed[[s]]*SB3 + salmon[[s]]*SAL3 + job[[s]]*JOB3 + cost[[s]]*COST3
+    
+    mnl_settings$V = V
+    
+    ### Compute within-class choice probabilities using MNL model
+    P[[s]] = apollo_mnl(mnl_settings, functionality)
+    
+    ### Take product across observation for same individual
+    P[[s]] = apollo_panelProd(P[[s]], apollo_inputs ,functionality)
+    
+    s=s+1
+  }
+  
+  ### Compute latent class model probabilities
+  lc_settings   = list(inClassProb = P, classProb=pi_values)
+  P[["model"]] = apollo_lc(lc_settings, apollo_inputs, functionality)
+  
+  ### Prepare and return outputs of function
+  P = apollo_prepareProb(P, apollo_inputs, functionality)
+  return(P)
+}
+
+# ################################################################# #
+#### MODEL ESTIMATION                                            ####
+# ################################################################# #
+
+model = apollo_estimate(apollo_beta, apollo_fixed, apollo_probabilities, apollo_inputs)
+
+#format and save to file
+
+apollo_saveOutput(model)
+
+# ################################################################# #
+#### Transformation to WTP                                       ####
+# ################################################################# #
+
+deltaMethod_settings <- list(expression=c(WTP_SB_a="-seabed_a/cost_a",
+                                          WTP_SB_b="-seabed_b/cost_b",
+                                          WTP_SB_c="-seabed_c/cost_c",
+                                          WTP_SB_d="-seabed_d/cost_d",
+                                          WTP_SB_e="-seabed_e/cost_e",
+                                           
+                                          WTP_SAL_a="-salmon_a/cost_a",
+                                          WTP_SAL_b="-salmon_b/cost_b",
+                                          WTP_SAL_c="-salmon_c/cost_c",
+                                          WTP_SAL_d="-salmon_d/cost_d",
+                                          WTP_SAL_e="-salmon_e/cost_e",
+                                          
+                                          WTP_JOB_a="-job_a/cost_a",
+                                          WTP_JOB_b="-job_b/cost_b",
+                                          WTP_JOB_c="-job_c/cost_c",
+                                          WTP_JOB_d="-job_d/cost_d",
+                                          WTP_JOB_e="-job_e/cost_e"))
+
+apollo_deltaMethod(model, deltaMethod_settings)
+
